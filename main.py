@@ -1,6 +1,5 @@
 import utime, ubinascii, micropython, network, re, ujson
-
-from umqttsimple import MQTTClient
+from lib.umqttsimple import MQTTClient
 from machine import Pin, PWM
 import gc
 gc.collect()
@@ -21,6 +20,7 @@ MQTT_SUB_TOPIC = []          # + is wildcard for that level
 # Specific MQTT_SUB_TOPICS for ADC, servo, stepper are .appended below
 MQTT_REGEX = rb'nred2esp/([^/]+)/([^/]+)' # rb is for raw, binary string for reg ex matching
 
+#====== CONFIGURE MQTT AND TURN ON/OFF DEVICES ======================#
 ESPID = b'/esp32A'
 MQTT_PUB_TOPIC = [b'esp2nred/', ESPID] # Specific MQTT_PUB_TOPICS created at time of publishing
 device = []                            # lvl2 category should be device names .appended in below
@@ -31,8 +31,8 @@ adcON = False             # Takes ~ 4ms to get adc values
 buttonON = False
 buttonpressed = False
 rotaryencoderON = False  # Takes ~ 0.6ms to get rotary encoder data
-stepperON = False        # Stepper needs delays < 1ms to run at fastest rpm
-servoON = True
+stepperON = True        # Stepper needs delays < 1ms to run at fastest rpm
+servoON = False
 debugging = False   # Turn ON to see print messages. Print txt only is 0.13ms.  Print var with .format and int subtraction is 2.6ms
 
 # Used to stagger timers for checking msgs, getting data, and publishing msgs
@@ -88,12 +88,12 @@ if stepperON:
     outgoingD[b'stepper'] = {}
     outgoingD[b'stepper']['send_always'] = True
     mqtt_controlsD={"delay":[0.1,0.3], "speed":[2,2], "mode":[0,0], "inverse":[False,True], "step":[2038,2038], "startstep":[0,0]}
-    stepreset = False    # used to reset steps thru nodered gui
+    mqtt_stepreset = False    # used to reset steps thru nodered gui
 
     m1pins = [5,18,19,21]
     m2pins = [27,14,12,13]
     numbermotors = 2
-    motor = Stepper(m1pins, m2pins, numbermotors, cpuMHz)
+    motor = Stepper(m1pins, m2pins, numbermotors)
 
 if servoON:
     MQTT_SUB_TOPIC.append(b'nred2esp/servoZCMD/+')
@@ -101,13 +101,15 @@ if servoON:
     outgoingD[b'servo'] = {}
     outgoingD[b'servo']['send_always'] = False
     outgoingD[b'servo']['send'] = False        
-    servopins = [19, 21]
+    servopins = [22, 23]
     servo = []
     for i, pin in enumerate(servopins):
         servo.append(PWM(Pin(pin),freq=50))
         servo[i].duty(75)
         # initialize to neutral position
         # 75 = 1.5mSec or neutral position
+
+#======== MQTT FUNCTIONS =======#
 
 def connect_wifi(WIFI_SSID, WIFI_PASSWORD):
     station = network.WLAN(network.STA_IF)
