@@ -7,7 +7,6 @@ Returns two integers, the position of the knob and the state of the button, 0 or
 '''
 
 from machine import Pin
-import ujson
 
 class RotaryEncoder:
     def __init__(self, clkPin, dtPin, button, setupinfo=False):
@@ -53,3 +52,11 @@ class RotaryEncoder:
                 self.outgoing[0] = self.counter
                 self.outgoing[1] = buttonstate
                 return self.outgoing
+
+if __name__ == "__main__":
+    clkPin, dtPin, button_rotenc = 15, 4, 2
+    rotEnc1 = RotaryEncoder(clkPin, dtPin, button_rotenc, setupinfo=True)
+    while True:
+        clicks = rotEnc1.update()
+        if clicks is not None:
+            print(clicks)
