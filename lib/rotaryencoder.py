@@ -10,20 +10,34 @@ from machine import Pin
 import ujson
 
 class RotaryEncoder:
-    def __init__(self, clkPin, dtPin, button):
-        self.counter = 0
-        self.clkUpdate = True
-        self.buttonpressed = False
-        self.clkPin = Pin(clkPin, Pin.IN, Pin.PULL_UP)  
-        self.dtPin = Pin(dtPin, Pin.IN, Pin.PULL_UP)  
-        self.button = Pin(button, Pin.IN, Pin.PULL_UP)  # Create button
+    def __init__(self, clkPin, dtPin, button, setupinfo=False):
+        self.clkPin = Pin(clkPin, Pin.IN, Pin.PULL_UP)
+        self.dtPin = Pin(dtPin, Pin.IN, Pin.PULL_UP)
+        self.button = Pin(button, Pin.IN, Pin.PULL_UP)
         self.clkLastState = self.clkPin.value()
         self.clkState = self.clkPin.value()
         self.dtState = self.dtPin.value()
-         
-        self.button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self.button_callback) # link interrupt handler to function for pin falling or rising
+        self.button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._button_callback) # link interrupt handler to function for pin falling or rising
+        if setupinfo: print('Rotary Encoder pins- clk:{0} data:{1} button:{2}'.format(self.clkPin, self.dtPin, self.button))
+        self.counter = 0
+        self.clkUpdate = True
+        self.buttonpressed = False
+        self.outgoing = [0,0]
+        
+    def _is_integer(self, n):
+        if n == None or n == "na":
+            return False
+        if isinstance(n, int):
+            return True
+        if abs(round(n) - n) == 0.5:
+            return False
+        else:
+            return True
     
-    def runencoder(self):
+    def _button_callback(self, pin):
+        self.buttonpressed = True
+  
+    def update(self):
         self.clkState = self.clkPin.value()
         self.dtState = self.dtPin.value()
         if self.clkState != self.clkLastState or self.buttonpressed:
@@ -35,12 +49,7 @@ class RotaryEncoder:
                 self.clkLastState = self.clkState
             buttonstate = self.button.value()
             self.buttonpressed = False
-            return self.counter, buttonstate
-        else:
-            return "na", "na"
-
-    def button_callback(self, pin):
-        self.buttonpressed = True
-
-
-
+            if self._is_integer(self.counter):
+                self.outgoing[0] = self.counter
+                self.outgoing[1] = buttonstate
+                return self.outgoing
